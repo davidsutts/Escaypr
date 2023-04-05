@@ -28,11 +28,12 @@ func main() {
 	mux := http.NewServeMux()
 
 	// Redirect file requests to static dir.
-	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("/static"))))
+	mux.Handle("/static/", http.StripPrefix("/static", http.FileServer(http.Dir("static"))))
 
 	// Assign function handlers to each page.
 	mux.HandleFunc("/", indexHandler)
-	mux.HandleFunc("/login", loginHandler)
+	mux.HandleFunc("/login/", loginHandler)
+	mux.HandleFunc("/login/form", loginFormHandler)
 	mux.HandleFunc("/favicon.ico", faviconHandler)
 
 	// Create a HTTP server.
@@ -44,7 +45,9 @@ func main() {
 func indexHandler(w http.ResponseWriter, r *http.Request) {
 	tmpl = template.Must(template.ParseFiles("static/html/index.html"))
 
-	var indexData = struct{ Title string }{Title: "Excapyr"}
+	log.Println(r.URL.Path)
+
+	var indexData = struct{ Title string }{Title: "Escapyr"}
 
 	err := tmpl.Execute(w, indexData)
 	if err != nil {
