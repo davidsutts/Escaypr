@@ -32,6 +32,7 @@ func main() {
 
 	// Assign function handlers to each page.
 	mux.HandleFunc("/", indexHandler)
+	mux.HandleFunc("/login", loginHandler)
 	mux.HandleFunc("/favicon.ico", faviconHandler)
 
 	// Create a HTTP server.
