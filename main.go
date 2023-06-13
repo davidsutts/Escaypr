@@ -30,12 +30,12 @@ import (
 var tmpl *template.Template
 
 var (
-	db *sql.DB
-	server = "localhost"
-	port = 1433
-	user = "sa"
+	db         *sql.DB
+	server     = "localhost"
+	port       = 1433
+	user       = "sa"
 	sapassword string
-	database = "escaypr"
+	database   = "escaypr"
 )
 
 func main() {
@@ -67,7 +67,7 @@ func main() {
 
 }
 
-func dbConnect (ctx context.Context) *sql.DB {
+func dbConnect(ctx context.Context) *sql.DB {
 	// Create connection string.
 	connString := fmt.Sprintf("server=%s;user id=%s;password=%s;port=%d;database=%s;", server, user, sapassword, port, database)
 
@@ -89,13 +89,20 @@ func dbConnect (ctx context.Context) *sql.DB {
 }
 
 func indexHandler(w http.ResponseWriter, r *http.Request) {
+	// Check userAuth cookie.
+	_, err := r.Cookie("userAuth")
+	if err != nil {
+		log.Println(err)
+		http.Redirect(w, r, "/login", http.StatusUnauthorized)
+	}
+
 	tmpl = template.Must(template.ParseFiles("static/html/index.html"))
 
 	log.Println(r.URL.Path)
 
 	var indexData = struct{ Title string }{Title: "Escapyr"}
 
-	err := tmpl.Execute(w, indexData)
+	err = tmpl.Execute(w, indexData)
 	if err != nil {
 		http.Error(w, "failed to write template", 500)
 	}

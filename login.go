@@ -54,18 +54,21 @@ func loginFormHandler(w http.ResponseWriter, r *http.Request) {
 	username := r.FormValue("username")
 	password := r.FormValue("password")
 
-	if checkLogin(username, password, ctx) {
+	if hash := validateLogin(username, password, ctx); hash != "" {
+		writeAuthCookie(w, hash)
 		w.WriteHeader(http.StatusOK)
 		log.Printf("Successful login attempt for %s", username)
+		return
 	} else {
 		w.WriteHeader(http.StatusUnauthorized)
 		w.Write([]byte("Invalid Username or password"))
 		log.Printf("Failed Login attempt")
+		return
 	}
 
 }
 
-func checkLogin(uname, pword string, ctx context.Context) bool {
+func validateLogin(uname, pword string, ctx context.Context) (sessionHash string) {
 
 	// Get password hash from db.
 	var dbPwordHash string
@@ -76,16 +79,22 @@ func checkLogin(uname, pword string, ctx context.Context) bool {
 	).Scan(&dbPwordHash)
 	if err != nil {
 		log.Println("failed to get value:", err)
-		return false
+		return ""
 	}
 
 	// Check if password is correct.
 	match, err := comparePasswordAndHash(pword, dbPwordHash)
 	if err != nil {
 		log.Println("Failed to compare password: %w", err)
-		return false
+		return ""
 	}
-	return match
+
+	// Return session hash, or fail.
+	if match {
+		return generateSessionHash(dbPwordHash)
+	} else {
+		return ""
+	}
 
 }
 
