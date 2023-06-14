@@ -4,8 +4,9 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"fmt"
-	"log"
 	"net/http"
+	"strconv"
+	"strings"
 )
 
 // generateSessionHash generates the session hash from an encoded string
@@ -38,8 +39,6 @@ func writeAuthCookie(w http.ResponseWriter, uid int, hash string) error {
 
 	// Encode the user id and hash.
 	sessionHash := encodeCookieHash(uid, h.Sum(nil))
-	log.Println(sessionHash)
-	log.Println(len(sessionHash))
 
 	// Write session to database.
 	_, err := db.Exec(
@@ -59,4 +58,48 @@ func writeAuthCookie(w http.ResponseWriter, uid int, hash string) error {
 // that looks like "$uid=<uid>$<hash>".
 func encodeCookieHash(uid int, hash []byte) (encCookieHash string) {
 	return fmt.Sprintf("$uid=%d$%x", uid, hash)
+}
+
+// validateCookie should be called whenever a request contains a cookie
+// to validate whether it is a valid cookie associated with a login.
+func validateCookie(r *http.Request) (valid bool) {
+	ck, err := r.Cookie("userAuth")
+	if err != nil {
+		return false
+	}
+	// Get the user id and sessionhash from the cookie.
+	s := strings.Split(ck.Value, ":")
+	if len(s) != 2 {
+		return false
+	}
+	uid, err := strconv.Atoi(s[0])
+	if err != nil {
+		return false
+	}
+	hash := s[1]
+	if len([]byte(hash)) != 64 {
+		return false
+	}
+
+	// Encode the hash.
+	h := sha256.New()
+	h.Write([]byte(hash))
+	encHash := encodeCookieHash(uid, h.Sum(nil))
+
+	// Query the database for the hash.
+	var dbUid int
+	row := db.QueryRow(
+		"SELECT userID FROM Cookies WHERE sessionHash = @encHash",
+		sql.Named("encHash", encHash),
+	)
+	err = row.Scan(&dbUid)
+	if err != nil {
+		return false
+	}
+	if dbUid != uid {
+		return false
+	}
+
+	return true
+
 }
