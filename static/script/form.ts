@@ -8,7 +8,7 @@ document.addEventListener("DOMContentLoaded", () => {
 })
 
 // Submit form when enter is pressed.
-document.addEventListener("keyup", function(event: KeyboardEvent) {
+document.addEventListener("keyup", function (event: KeyboardEvent) {
 	var button = document.querySelector<HTMLElement>("#submit");
 	if (event.code == "Enter") {
 		if (checkForm()) {
@@ -21,7 +21,7 @@ document.addEventListener("keyup", function(event: KeyboardEvent) {
 });
 
 // Check the form to ensure the username and password are not blank
-function checkForm() : boolean {
+function checkForm(): boolean {
 	let inputs = document.querySelectorAll("input");
 	for (let i = 0; i < 2; i++) {
 		if (loading || inputs[i].value == "") {
@@ -34,7 +34,7 @@ function checkForm() : boolean {
 // Toggle the submit button depending on the checkForm return.
 function toggleSubmit() {
 	var button = document.querySelector<HTMLElement>("#submit");
-	if (checkForm() == false){
+	if (checkForm() == false) {
 		button?.setAttribute("disabled", "true");
 	} else {
 		button?.removeAttribute("disabled");
@@ -42,10 +42,10 @@ function toggleSubmit() {
 }
 
 // Post the inputs to the form.
-function postForm() {	
+function postForm() {
 	const msg = document.querySelector("p")!;
 	const form = document.querySelector('form')!;
-	const url =  "/login/form";
+	const url = "/login/form";
 
 	const formData = new FormData(form);
 
@@ -53,7 +53,7 @@ function postForm() {
 	xhr.open("POST", url);
 
 	// Load response and redirect or fail attempt.
-	xhr.onloadstart = () => {loading = true;}
+	xhr.onloadstart = () => { loading = true; }
 	xhr.onloadend = () => {
 		msg.style.display = "block";
 		if (xhr.status == 200) {
