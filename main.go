@@ -57,6 +57,7 @@ func main() {
 	// Assign function handlers to each page.
 	mux.HandleFunc("/", indexHandler)
 	mux.HandleFunc("/login/", loginHandler)
+	mux.HandleFunc("/logout/", logoutHandler)
 	mux.HandleFunc("/login/form", loginFormHandler)
 	mux.HandleFunc("/favicon.ico", faviconHandler)
 
@@ -88,16 +89,20 @@ func dbConnect(ctx context.Context) *sql.DB {
 
 // indexHandler handles requests to the index (home) page.
 func indexHandler(w http.ResponseWriter, r *http.Request) {
-	valid := validateCookie(r)
+	valid, username := validateCookie(r)
 	if !valid {
 		http.Redirect(w, r, "/login", http.StatusUnauthorized)
+		return
 	}
 
 	tmpl = template.Must(template.ParseFiles("static/html/index.html"))
 
 	log.Println(r.URL.Path)
 
-	var indexData = struct{ Title string }{Title: "Escapyr"}
+	var indexData = struct {
+		Title string
+		Uname string
+	}{Title: "Escapyr", Uname: username}
 
 	err := tmpl.Execute(w, indexData)
 	if err != nil {

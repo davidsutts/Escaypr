@@ -28,6 +28,14 @@ type argon2params struct {
 	keyLength   uint32
 }
 
+// userAuthVals contains all the data which is stored in the encoded value of the
+// userAuth cookies.
+type userAuthVals struct {
+	UserID      int
+	Username    string
+	SessionHash []byte
+}
+
 var (
 	ErrInvalidHash         = errors.New("the encoded hash is not in the correct format")
 	ErrIncompatibleVersion = errors.New("incompatible version of argon2")
@@ -72,7 +80,7 @@ func validateLogin(uname, pword string, ctx context.Context) (uid int, sessionHa
 
 // writeCookie creates an auth cookie and writes it to the http response
 // and creates a new session in the database.
-func writeAuthCookie(w http.ResponseWriter, uid int, userHash string) error {
+func writeAuthCookie(w http.ResponseWriter, uid int, username, userHash string) error {
 	// Salt the hash for unique client sessionHash.
 	decUserHash, err := hex.DecodeString(userHash)
 	if err != nil {
@@ -83,14 +91,18 @@ func writeAuthCookie(w http.ResponseWriter, uid int, userHash string) error {
 		return fmt.Errorf("unable to add salt: %w", err)
 	}
 
+	// Set maximum expiry date of 400 days
+	expTime := time.Now().UTC().Add(400 * 24 * time.Hour)
+
 	// Create cookie.
 	cookie := http.Cookie{
 		Name:     "userAuth",
-		Value:    fmt.Sprintf("%d:%x", uid, hash),
+		Value:    fmt.Sprintf("%d:%s:%x", uid, username, hash),
 		Path:     "/",
 		HttpOnly: true,
 		Secure:   true,
 		SameSite: http.SameSiteStrictMode,
+		Expires:  expTime,
 	}
 
 	// Write cookie to response.
@@ -102,7 +114,6 @@ func writeAuthCookie(w http.ResponseWriter, uid int, userHash string) error {
 
 	// Encode the user id and hash.
 	sessionHash := encodeCookieHash(uid, h.Sum(nil))
-	expTime := time.Now().UTC().Add(expLength)
 
 	// Write session to database.
 	_, err = db.Exec(
@@ -120,30 +131,20 @@ func writeAuthCookie(w http.ResponseWriter, uid int, userHash string) error {
 
 // validateCookie should be called whenever a request contains a cookie
 // to validate whether it is a valid cookie associated with a login.
-func validateCookie(r *http.Request) (valid bool) {
+func validateCookie(r *http.Request) (valid bool, username string) {
 	ck, err := r.Cookie("userAuth")
 	if err != nil {
-		return false
+		return false, ""
 	}
-	// Get the user id and sessionhash from the cookie.
-	s := strings.Split(ck.Value, ":")
-	if len(s) != 2 {
-		return false
-	}
-	uid, err := strconv.Atoi(s[0])
+	uaVals, err := decodeCookie(ck)
 	if err != nil {
-		return false
-	}
-	strHash := s[1]
-	hash, err := hex.DecodeString(strHash)
-	if err != nil || len(hash) != 32 {
-		return false
+		return false, ""
 	}
 
 	// Encode the hash.
 	h := sha256.New()
-	h.Write([]byte(hash))
-	encHash := encodeCookieHash(uid, h.Sum(nil))
+	h.Write([]byte(uaVals.SessionHash))
+	encHash := encodeCookieHash(uaVals.UserID, h.Sum(nil))
 	// Query the database for the hash.
 	var (
 		dbUid   int
@@ -156,12 +157,12 @@ func validateCookie(r *http.Request) (valid bool) {
 	err = row.Scan(&dbUid, &expTime)
 	if err != nil {
 		log.Println(err)
-		return false
+		return false, ""
 	}
 
 	// Check uid lines up with cookie.
-	if dbUid != uid {
-		return false
+	if dbUid != uaVals.UserID {
+		return false, ""
 	}
 
 	// Check if expiry time was in the past.
@@ -173,8 +174,8 @@ func validateCookie(r *http.Request) (valid bool) {
 		if err != nil {
 			log.Println(err)
 		}
-		log.Printf("userID %d logged out: expired cookie", uid)
-		return false
+		log.Printf("userID %d logged out: expired cookie", uaVals.UserID)
+		return false, ""
 	}
 
 	// Extend expiry time.
@@ -188,7 +189,33 @@ func validateCookie(r *http.Request) (valid bool) {
 		log.Println("couldn't update expiryTime: %w", err)
 	}
 
-	return true
+	return true, uaVals.Username
+}
+
+// decodeCookie takes an encoded cookie string and returns the userID,
+// username and hash. Returns an error if these values cannot be parsed.
+func decodeCookie(ck *http.Cookie) (*userAuthVals, error) {
+	// Get the userID, username, sessionhash from the cookie.
+	s := strings.Split(ck.Value, ":")
+	if len(s) != 3 {
+		return nil, errors.New("invalid cookie length")
+	}
+	uid, err := strconv.Atoi(s[0])
+	if err != nil {
+		return nil, fmt.Errorf("couldn't parse uid: %w", err)
+	}
+	uname := s[1]
+	if uname == "" {
+		return nil, errors.New("no username")
+	}
+	strHash := s[2]
+	hash, err := hex.DecodeString(strHash)
+	if err != nil || len(hash) != 32 {
+		return nil, fmt.Errorf("unable to decode string to hex: %w", err)
+	}
+
+	return &userAuthVals{UserID: uid, Username: uname, SessionHash: hash}, nil
+
 }
 
 // generateSessionHash generates the session hash from an encoded string

@@ -5,12 +5,18 @@
 		<meta charset="UTF-8">
 		<meta http-equiv="X-UA-Compatible" content="IE=edge">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<link href="/static/style/main.css" rel="stylesheet" type="text/css">
+    <script src="/static/script/index.js"></script>
 		<title>{{.Title}}</title>
 		<link rel="icon" type="image/x-icon" href="/favicon.ico" />
 	</head>
 
 	<body>
-
+		<div class="centre">
+			<h1>Welcome to Escaypr, @{{.Uname}}</h1>
+			<br>
+			<button id="logout-btn">logout</button>
+		</div>
 	</body>
 
 </html>
