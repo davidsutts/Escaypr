@@ -39,7 +39,6 @@ var (
 )
 
 func main() {
-
 	// Parse command-line flags.
 	flag.StringVar(&sapassword, "dbpword", "", "DB SA Password")
 	flag.Parse()
@@ -64,9 +63,9 @@ func main() {
 	// Create a HTTP server.
 	log.Println("listening on localhost:8080")
 	log.Fatal(http.ListenAndServe(":8080", mux))
-
 }
 
+// dbConnect initialises a connection with the database and returns a reference to a sql.DB.
 func dbConnect(ctx context.Context) *sql.DB {
 	// Create connection string.
 	connString := fmt.Sprintf("server=%s;user id=%s;password=%s;port=%d;database=%s;", server, user, sapassword, port, database)
@@ -85,9 +84,9 @@ func dbConnect(ctx context.Context) *sql.DB {
 	log.Printf("Connected!\n")
 
 	return db
-
 }
 
+// indexHandler handles requests to the index (home) page.
 func indexHandler(w http.ResponseWriter, r *http.Request) {
 	valid := validateCookie(r)
 	if !valid {
