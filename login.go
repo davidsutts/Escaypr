@@ -54,8 +54,13 @@ func loginFormHandler(w http.ResponseWriter, r *http.Request) {
 	username := r.FormValue("username")
 	password := r.FormValue("password")
 
-	if hash := validateLogin(username, password, ctx); hash != "" {
-		writeAuthCookie(w, hash)
+	if uid, hash := validateLogin(username, password, ctx); hash != "" {
+		err := writeAuthCookie(w, uid, hash)
+		if err != nil {
+			log.Printf("couldn't write cookie: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 		w.WriteHeader(http.StatusOK)
 		log.Printf("Successful login attempt for %s", username)
 		return
@@ -68,32 +73,35 @@ func loginFormHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func validateLogin(uname, pword string, ctx context.Context) (sessionHash string) {
+func validateLogin(uname, pword string, ctx context.Context) (uid int, sessionHash string) {
 
 	// Get password hash from db.
-	var dbPwordHash string
+	var (
+		dbPwordHash string
+	)
+
 	err := db.QueryRowContext(
 		ctx,
-		"SELECT pword FROM Users WHERE uname = @uname;",
+		"SELECT userID, pword FROM Users WHERE uname = @uname;",
 		sql.Named("uname", uname),
-	).Scan(&dbPwordHash)
+	).Scan(&uid, &dbPwordHash)
 	if err != nil {
 		log.Println("failed to get value:", err)
-		return ""
+		return -1, ""
 	}
 
 	// Check if password is correct.
 	match, err := comparePasswordAndHash(pword, dbPwordHash)
 	if err != nil {
 		log.Println("Failed to compare password: %w", err)
-		return ""
+		return -1, ""
 	}
 
 	// Return session hash, or fail.
 	if match {
-		return generateSessionHash(dbPwordHash)
+		return uid, generateSessionHash(dbPwordHash)
 	} else {
-		return ""
+		return -1, ""
 	}
 
 }

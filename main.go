@@ -89,10 +89,8 @@ func dbConnect(ctx context.Context) *sql.DB {
 }
 
 func indexHandler(w http.ResponseWriter, r *http.Request) {
-	// Check userAuth cookie.
-	_, err := r.Cookie("userAuth")
-	if err != nil {
-		log.Println(err)
+	valid := validateCookie(r)
+	if !valid {
 		http.Redirect(w, r, "/login", http.StatusUnauthorized)
 	}
 
@@ -102,7 +100,7 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 
 	var indexData = struct{ Title string }{Title: "Escapyr"}
 
-	err = tmpl.Execute(w, indexData)
+	err := tmpl.Execute(w, indexData)
 	if err != nil {
 		http.Error(w, "failed to write template", 500)
 	}
