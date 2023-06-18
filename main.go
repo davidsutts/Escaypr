@@ -57,6 +57,7 @@ func main() {
 	// Assign function handlers to each page.
 	mux.HandleFunc("/", indexHandler)
 	mux.HandleFunc("/login/", loginHandler)
+	mux.HandleFunc("/logout/", logoutHandler)
 	mux.HandleFunc("/login/form", loginFormHandler)
 	mux.HandleFunc("/favicon.ico", faviconHandler)
 
@@ -91,6 +92,7 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 	valid, username := validateCookie(r)
 	if !valid {
 		http.Redirect(w, r, "/login", http.StatusUnauthorized)
+		return
 	}
 
 	tmpl = template.Must(template.ParseFiles("static/html/index.html"))

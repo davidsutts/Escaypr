@@ -52,7 +52,6 @@ function postForm() {
     xhr.onloadend = function () {
         msg.style.display = "block";
         if (xhr.status == 200) {
-            console.log(xhr.response);
             msg.innerText = "Login Successful";
             loading = false;
             window.location.replace("/index"); // Send logged in user to index.

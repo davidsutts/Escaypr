@@ -28,6 +28,14 @@ type argon2params struct {
 	keyLength   uint32
 }
 
+// userAuthVals contains all the data which is stored in the encoded value of the
+// userAuth cookies.
+type userAuthVals struct {
+	UserID      int
+	Username    string
+	SessionHash []byte
+}
+
 var (
 	ErrInvalidHash         = errors.New("the encoded hash is not in the correct format")
 	ErrIncompatibleVersion = errors.New("incompatible version of argon2")
@@ -128,29 +136,15 @@ func validateCookie(r *http.Request) (valid bool, username string) {
 	if err != nil {
 		return false, ""
 	}
-	// Get the user id and sessionhash from the cookie.
-	s := strings.Split(ck.Value, ":")
-	if len(s) != 3 {
-		return false, ""
-	}
-	uid, err := strconv.Atoi(s[0])
+	uaVals, err := decodeCookie(ck)
 	if err != nil {
-		return false, ""
-	}
-	uname := s[1]
-	if uname == "" {
-		return false, ""
-	}
-	strHash := s[2]
-	hash, err := hex.DecodeString(strHash)
-	if err != nil || len(hash) != 32 {
 		return false, ""
 	}
 
 	// Encode the hash.
 	h := sha256.New()
-	h.Write([]byte(hash))
-	encHash := encodeCookieHash(uid, h.Sum(nil))
+	h.Write([]byte(uaVals.SessionHash))
+	encHash := encodeCookieHash(uaVals.UserID, h.Sum(nil))
 	// Query the database for the hash.
 	var (
 		dbUid   int
@@ -167,7 +161,7 @@ func validateCookie(r *http.Request) (valid bool, username string) {
 	}
 
 	// Check uid lines up with cookie.
-	if dbUid != uid {
+	if dbUid != uaVals.UserID {
 		return false, ""
 	}
 
@@ -180,7 +174,7 @@ func validateCookie(r *http.Request) (valid bool, username string) {
 		if err != nil {
 			log.Println(err)
 		}
-		log.Printf("userID %d logged out: expired cookie", uid)
+		log.Printf("userID %d logged out: expired cookie", uaVals.UserID)
 		return false, ""
 	}
 
@@ -195,7 +189,33 @@ func validateCookie(r *http.Request) (valid bool, username string) {
 		log.Println("couldn't update expiryTime: %w", err)
 	}
 
-	return true, uname
+	return true, uaVals.Username
+}
+
+// decodeCookie takes an encoded cookie string and returns the userID,
+// username and hash. Returns an error if these values cannot be parsed.
+func decodeCookie(ck *http.Cookie) (*userAuthVals, error) {
+	// Get the userID, username, sessionhash from the cookie.
+	s := strings.Split(ck.Value, ":")
+	if len(s) != 3 {
+		return nil, errors.New("invalid cookie length")
+	}
+	uid, err := strconv.Atoi(s[0])
+	if err != nil {
+		return nil, fmt.Errorf("couldn't parse uid: %w", err)
+	}
+	uname := s[1]
+	if uname == "" {
+		return nil, errors.New("no username")
+	}
+	strHash := s[2]
+	hash, err := hex.DecodeString(strHash)
+	if err != nil || len(hash) != 32 {
+		return nil, fmt.Errorf("unable to decode string to hex: %w", err)
+	}
+
+	return &userAuthVals{UserID: uid, Username: uname, SessionHash: hash}, nil
+
 }
 
 // generateSessionHash generates the session hash from an encoded string
