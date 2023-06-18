@@ -33,7 +33,7 @@ func loginFormHandler(w http.ResponseWriter, r *http.Request) {
 	password := r.FormValue("password")
 
 	if uid, hash := validateLogin(username, password, ctx); hash != "" {
-		err := writeAuthCookie(w, uid, hash)
+		err := writeAuthCookie(w, uid, username, hash)
 		if err != nil {
 			log.Printf("couldn't write cookie: %v", err)
 			w.WriteHeader(http.StatusInternalServerError)

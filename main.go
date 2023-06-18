@@ -88,7 +88,7 @@ func dbConnect(ctx context.Context) *sql.DB {
 
 // indexHandler handles requests to the index (home) page.
 func indexHandler(w http.ResponseWriter, r *http.Request) {
-	valid := validateCookie(r)
+	valid, username := validateCookie(r)
 	if !valid {
 		http.Redirect(w, r, "/login", http.StatusUnauthorized)
 	}
@@ -97,7 +97,10 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 
 	log.Println(r.URL.Path)
 
-	var indexData = struct{ Title string }{Title: "Escapyr"}
+	var indexData = struct {
+		Title string
+		Uname string
+	}{Title: "Escapyr", Uname: username}
 
 	err := tmpl.Execute(w, indexData)
 	if err != nil {
