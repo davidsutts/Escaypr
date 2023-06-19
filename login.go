@@ -14,6 +14,13 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 
 	log.Println(r.URL.Path)
 
+	valid, _ := validateCookie(r)
+	if valid {
+		h := http.RedirectHandler("/", http.StatusSeeOther)
+		h.ServeHTTP(w, r)
+		return
+	}
+
 	var loginData = struct{ Title string }{Title: "Login"}
 
 	err := tmpl.Execute(w, loginData)
