@@ -21,7 +21,10 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var loginData = struct{ Title string }{Title: "Login"}
+	var loginData = struct {
+		Title  string
+		Signup bool
+	}{Title: "Login", Signup: false}
 
 	err := tmpl.Execute(w, loginData)
 	if err != nil {
@@ -98,4 +101,8 @@ func logoutHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("logged out")
 	w.WriteHeader(200)
 
+}
+
+func signupFormHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("signing up")
 }

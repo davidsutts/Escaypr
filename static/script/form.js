@@ -1,14 +1,13 @@
-// Global variables.
 var loading = false;
-// Check for changes on form to update submission button.
+var signup = false;
 document.addEventListener("DOMContentLoaded", function () {
     var _a, _b;
     (_a = document.getElementById("pword")) === null || _a === void 0 ? void 0 : _a.addEventListener("change", toggleSubmit);
     (_b = document.getElementById("uname")) === null || _b === void 0 ? void 0 : _b.addEventListener("change", toggleSubmit);
 });
-// Submit form when enter is pressed.
 document.addEventListener("keyup", function (event) {
     var button = document.querySelector("#submit");
+    toggleSubmit();
     if (event.code == "Enter") {
         if (checkForm()) {
             postForm();
@@ -19,17 +18,26 @@ document.addEventListener("keyup", function (event) {
         return;
     }
 });
-// Check the form to ensure the username and password are not blank
+document.addEventListener("click", toggleSubmit);
 function checkForm() {
-    var inputs = document.querySelectorAll("input");
-    for (var i = 0; i < 2; i++) {
+    var inputs;
+    if (signup) {
+        inputs = document.getElementsByClassName("signup-input");
+    }
+    else {
+        inputs = document.getElementsByClassName("login");
+    }
+    for (var i = 0; i < inputs.length; i++) {
         if (loading || inputs[i].value == "") {
             return false;
         }
     }
+    var validEmail = !inputs[0].validity.patternMismatch;
+    if (!validEmail || signup && inputs[2].value != inputs[3].value) {
+        return false;
+    }
     return true;
 }
-// Toggle the submit button depending on the checkForm return.
 function toggleSubmit() {
     var button = document.querySelector("#submit");
     if (checkForm() == false) {
@@ -39,30 +47,39 @@ function toggleSubmit() {
         button === null || button === void 0 ? void 0 : button.removeAttribute("disabled");
     }
 }
-// Post the inputs to the form.
 function postForm() {
     var msg = document.querySelector("p");
     var form = document.querySelector('form');
-    var url = "/login/form";
+    var url = signup ? "/signup/form" : "/login/form";
     var formData = new FormData(form);
     var xhr = new XMLHttpRequest;
     xhr.open("POST", url);
-    // Load response and redirect or fail attempt.
     xhr.onloadstart = function () { loading = true; };
     xhr.onloadend = function () {
         msg.style.display = "block";
         if (xhr.status == 200) {
             msg.innerText = "Login Successful";
             loading = false;
-            window.location.replace("/index"); // Send logged in user to index.
+            window.location.replace("/index");
         }
         else {
             msg.innerText = "Invalid usernamne or password";
             setTimeout(function () {
                 loading = false;
-            }, 1000); // Make user wait before trying again.
+            }, 1000);
         }
     };
-    // Send login request.
     xhr.send(formData);
 }
+function signupToggle() {
+    console.log("signup");
+    signup = !signup;
+    var btn = document.getElementById("form-type-btn");
+    btn.value = signup ? "Login Instead" : "Sign Up Instead";
+    var inputs = document.getElementsByClassName("signup");
+    console.log(inputs.length);
+    for (var i = 0; i < inputs.length; i++) {
+        inputs[i].style.display = signup ? "flex" : "none";
+    }
+}
+//# sourceMappingURL=form.js.map

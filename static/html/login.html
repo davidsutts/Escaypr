@@ -15,15 +15,26 @@
     <form>
       <h1>LOGIN</h1>
       <p class="err"></p>
+      <div class="input-pair signup">
+        <label for="email">Email</label>
+        <input class="signup-input" id="email" name="email" type="email" required pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$">
+      </div>
       <div class="input-pair">
         <label for="uname">Username</label>
-        <input id="uname" name="username" type="text">
+        <input class="login signup-input" id="uname" name="username" type="text">
       </div>
       <div class="input-pair">
         <label for="pword">Password</label>
-        <input id="pword" name="password" type="password">
+        <input class="login signup-input" id="pword" name="password" type="password">
       </div>
-      <input id="submit" type="button" value="Submit" disabled onclick="postForm()">
+      <div class="input-pair signup">
+        <label for="repword">Again...</label>
+        <input class="signup-input" id="repword" name="repword" type="password">
+      </div>
+      <div class="input-pair end">
+        <input id="submit" type="button" value="Submit" disabled onclick="postForm()">
+        <input id="form-type-btn" type="button" value="Sign Up Instead" onclick="signupToggle()">
+      </div>
     </form>
   </body>
 
