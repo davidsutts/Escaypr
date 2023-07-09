@@ -125,8 +125,8 @@ func signupFormHandler(w http.ResponseWriter, r *http.Request) {
 		"IF EXISTS (SELECT * FROM Users WHERE email = @email) RAISERROR('Duplicate email', 16, 1) "+
 			"IF EXISTS (SELECT * FROM Users WHERE uname = @uname) RAISERROR('Duplicate uname', 16, 1) "+
 			"INSERT INTO Users (email, uname, pword) "+
-			"VALUES (@email,@uname,@pword) "+
-			"SELECT userID FROM Users WHERE email = @email	AND uname = @uname",
+			"SELECT TOP 1 @email,@uname,@pword "+
+			"WHERE NOT EXISTS (SELECT * FROM Users WHERE email = @email OR uname = @uname)",
 		sql.Named("uname", username),
 		sql.Named("email", email),
 		sql.Named("pword", encHash),
@@ -138,7 +138,7 @@ func signupFormHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println(uid)
 
 	if err != nil {
-		log.Println(err)
+		log.Println("couldn't create user:", err)
 		w.WriteHeader(http.StatusUnauthorized)
 		w.Write([]byte(err.Error()))
 		return
@@ -151,6 +151,6 @@ func signupFormHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	log.Printf("Successful login attempt for %s", username)
+	log.Printf("Successful signup for %s", username)
 
 }
