@@ -95,14 +95,18 @@ function postForm() {
     xhr.send(formData);
 }
 function signupToggle() {
-    console.log("signup");
     signup = !signup;
     var btn = document.getElementById("form-type-btn");
     btn.value = signup ? "Login Instead" : "Sign Up Instead";
     var inputs = document.getElementsByClassName("signup");
-    console.log(inputs.length);
     for (var i = 0; i < inputs.length; i++) {
         inputs[i].style.display = signup ? "flex" : "none";
+    }
+    var allInputs = document.getElementsByClassName("signup-input");
+    for (var i = 0; i < allInputs.length; i++) {
+        if (allInputs[i]) {
+            allInputs[i].value = "";
+        }
     }
 }
 //# sourceMappingURL=form.js.map

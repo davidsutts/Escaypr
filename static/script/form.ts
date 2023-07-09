@@ -116,13 +116,25 @@ function postForm() {
 
 // Switch the user to the signup page.
 function signupToggle() {
-	console.log("signup")
+	// Toggle signup var.
 	signup = !signup
+
+	// Replace text in button.
 	let btn = document.getElementById("form-type-btn") as HTMLInputElement;
 	btn.value = signup ? "Login Instead" : "Sign Up Instead"
+
+	// Get signup specific fields and toggle visibility.
 	let inputs = document.getElementsByClassName("signup") as HTMLCollectionOf<HTMLDivElement>
-	console.log(inputs.length)
 	for (let i = 0; i < inputs.length; i++) {
 		inputs[i].style.display = signup ? "flex" : "none"
 	}
+
+	// Clear values of all sign-up fields.
+	let allInputs = document.getElementsByClassName("signup-input") as HTMLCollectionOf<HTMLInputElement>
+	for (let i = 0; i < allInputs.length; i++) {
+		if (allInputs[i]) {
+			allInputs[i].value = ""
+		}
+	}
+
 }
