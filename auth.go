@@ -21,11 +21,11 @@ import (
 
 // argon2params is used to pass the argon 2 arguments easily between functions.
 type argon2params struct {
-	memory      uint32
-	iterations  uint32
-	parallelism uint8
-	saltLength  uint32
-	keyLength   uint32
+	Memory      uint32
+	Iterations  uint32
+	Parallelism uint8
+	SaltLength  uint32
+	KeyLength   uint32
 }
 
 // userAuthVals contains all the data which is stored in the encoded value of the
@@ -40,6 +40,8 @@ var (
 	ErrInvalidHash         = errors.New("the encoded hash is not in the correct format")
 	ErrIncompatibleVersion = errors.New("incompatible version of argon2")
 )
+
+var defaultArgonParams = argon2params{Memory: 64 * 1024, Iterations: 3, Parallelism: 4, SaltLength: 16, KeyLength: 32}
 
 // expLength is the cookie expiry time used for auth cookies.
 const expLength = 240 * time.Hour // Auth cookies last 10 days.
@@ -253,19 +255,19 @@ func addSalt(hash []byte) (hashOut []byte, err error) {
 // Using the argon2 go library.
 func generateArgon2Hash(password string, p argon2params) (encodedHash string, err error) {
 	// Generate salt.
-	salt, err := generateSalt(p.saltLength)
+	salt, err := generateSalt(p.SaltLength)
 	if err != nil {
 		return "", fmt.Errorf("could not generate salt: %w", err)
 	}
 
 	// Generate hash.
-	hash := argon2.IDKey([]byte(password), salt, p.iterations, p.memory, p.parallelism, p.keyLength)
+	hash := argon2.IDKey([]byte(password), salt, p.Iterations, p.Memory, p.Parallelism, p.KeyLength)
 
 	// Encode salt and hash.
 	b64Salt := base64.RawStdEncoding.EncodeToString(salt)
 	b64Hash := base64.RawStdEncoding.EncodeToString(hash)
 
-	encodedHash = fmt.Sprintf("$argon2id$v=%d$m=%d,t=%d,p=%d$%s$%s", argon2.Version, p.memory, p.iterations, p.parallelism, b64Salt, b64Hash)
+	encodedHash = fmt.Sprintf("$argon2id$v=%d$m=%d,t=%d,p=%d$%s$%s", argon2.Version, p.Memory, p.Iterations, p.Parallelism, b64Salt, b64Hash)
 
 	return encodedHash, nil
 }
@@ -281,7 +283,7 @@ func comparePasswordAndHash(password, encodedHash string) (match bool, err error
 	}
 
 	// Derive the key from the other password using the same parameters.
-	otherHash := argon2.IDKey([]byte(password), salt, p.iterations, p.memory, p.parallelism, p.keyLength)
+	otherHash := argon2.IDKey([]byte(password), salt, p.Iterations, p.Memory, p.Parallelism, p.KeyLength)
 
 	// Check that the contents of the hashed passwords are identical.
 	if subtle.ConstantTimeCompare(hash, otherHash) == 1 {
@@ -321,7 +323,7 @@ func decodeArgon2Hash(encodedHash string) (p *argon2params, salt, hash []byte, e
 	}
 
 	p = &argon2params{}
-	_, err = fmt.Sscanf(vals[3], "m=%d,t=%d,p=%d", &p.memory, &p.iterations, &p.parallelism)
+	_, err = fmt.Sscanf(vals[3], "m=%d,t=%d,p=%d", &p.Memory, &p.Iterations, &p.Parallelism)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -330,13 +332,37 @@ func decodeArgon2Hash(encodedHash string) (p *argon2params, salt, hash []byte, e
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	p.saltLength = uint32(len(salt))
+	p.SaltLength = uint32(len(salt))
 
 	hash, err = base64.RawStdEncoding.Strict().DecodeString(vals[5])
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	p.keyLength = uint32(len(hash))
+	p.KeyLength = uint32(len(hash))
 
 	return p, salt, hash, nil
+}
+
+// uniqueIdentity reads the database to determine if the supplied username or email exist
+// already.
+func isUniqueIdentity(uname, email string) bool {
+	log.Println(uname, email)
+	// Query the database.
+	rows, err := db.Query(
+		"SELECT uname, email FROM users WHERE email = @email OR uname = @username",
+		sql.Named("email", email),
+		sql.Named("username", uname),
+	)
+	if err != nil {
+		log.Println("couldn't query for overlap:", rows.Err())
+	}
+
+	// Check if the user exsts.
+	var (
+		dbUname string
+		dbEmail string
+	)
+	rows.Scan(&dbUname, &dbEmail)
+	log.Println(dbUname)
+	return false
 }

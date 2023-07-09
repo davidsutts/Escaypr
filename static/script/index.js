@@ -15,3 +15,4 @@ function logout() {
     };
     xhr.send();
 }
+//# sourceMappingURL=index.js.map

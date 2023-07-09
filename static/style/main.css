@@ -15,14 +15,12 @@ form {
 }
 
 label {
-  width: 100px;
+  width: 5vw;
 }
 
-button {
-  position: relative;
-  left: 50%;
-  transform: translate(-50%, 0);
-}
+/* :invalid {
+  background-color: red;
+} */
 
 .err {
   display: none;
@@ -32,26 +30,7 @@ button {
   display: flex;
   flex-direction: row;
   margin-bottom: 5px;
-}
-
-.form-labels {
-  width: fit-content;
-  display: grid;
-  flex-direction: column;
-  justify-content: flex-start;
-}
-
-.form-inputs {
-  width: fit-content;
-  display: grid;
-  flex-direction: column;
-}
-
-.input-pairs {
-  margin: auto;
-  width: fit-content;
-  display: flex;
-  flex-direction: row;
+  justify-self: end;
 }
 
 .centre {
@@ -59,4 +38,9 @@ button {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
+}
+
+.signup {
+  height: auto;
+  display: none;
 }

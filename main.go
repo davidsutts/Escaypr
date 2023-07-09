@@ -59,6 +59,7 @@ func main() {
 	mux.HandleFunc("/login/", loginHandler)
 	mux.HandleFunc("/logout/", logoutHandler)
 	mux.HandleFunc("/login/form", loginFormHandler)
+	mux.HandleFunc("/signup/form", signupFormHandler)
 	mux.HandleFunc("/favicon.ico", faviconHandler)
 
 	// Create a HTTP server.
