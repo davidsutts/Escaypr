@@ -39,7 +39,7 @@ function checkForm(): boolean {
 			return false;
 		}
 	}
-	let validEmail = !inputs[0].validity.patternMismatch;
+	let validEmail = !inputs[1].validity.patternMismatch;
 	if (!validEmail || signup && inputs[2].value != inputs[3].value) {
 		return false;
 	}

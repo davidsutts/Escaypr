@@ -32,7 +32,7 @@ function checkForm() {
             return false;
         }
     }
-    var validEmail = !inputs[0].validity.patternMismatch;
+    var validEmail = !inputs[1].validity.patternMismatch;
     if (!validEmail || signup && inputs[2].value != inputs[3].value) {
         return false;
     }
