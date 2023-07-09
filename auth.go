@@ -41,7 +41,7 @@ var (
 	ErrIncompatibleVersion = errors.New("incompatible version of argon2")
 )
 
-var defaultArgonParams = argon2params{Memory: 64 * 1024, Iterations: 3, Parallelism: 4, SaltLength: 16, KeyLength: 16}
+var defaultArgonParams = argon2params{Memory: 64 * 1024, Iterations: 3, Parallelism: 4, SaltLength: 16, KeyLength: 32}
 
 // expLength is the cookie expiry time used for auth cookies.
 const expLength = 240 * time.Hour // Auth cookies last 10 days.

@@ -121,16 +121,22 @@ func signupFormHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println("couldn't hash password:", err)
 	}
-	val, err := db.Query(
+	row := db.QueryRow(
 		"IF EXISTS (SELECT * FROM Users WHERE email = @email) RAISERROR('Duplicate email', 16, 1) "+
 			"IF EXISTS (SELECT * FROM Users WHERE uname = @uname) RAISERROR('Duplicate uname', 16, 1) "+
 			"INSERT INTO Users (email, uname, pword) "+
-			"SELECT TOP 1 @email,@uname,@pword "+
-			"FROM Users WHERE NOT EXISTS (SELECT * FROM Users WHERE email = @email OR uname = @uname) ",
+			"VALUES (@email,@uname,@pword) "+
+			"SELECT userID FROM Users WHERE email = @email	AND uname = @uname",
 		sql.Named("uname", username),
 		sql.Named("email", email),
 		sql.Named("pword", encHash),
 	)
+
+	// Get the userID and error.
+	var uid int
+	err = row.Scan(&uid)
+	log.Println(uid)
+
 	if err != nil {
 		log.Println(err)
 		w.WriteHeader(http.StatusUnauthorized)
@@ -138,9 +144,13 @@ func signupFormHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Println(val)
-
 	// Create new cookie and log user in.
-	// writeAuthCookie(w)
+	err = writeAuthCookie(w, uid, username, generateSessionHash(encHash))
+	if err != nil {
+		log.Println("couldn't write cookie:", err)
+	}
+
+	w.WriteHeader(http.StatusOK)
+	log.Printf("Successful login attempt for %s", username)
 
 }
