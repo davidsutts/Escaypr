@@ -72,16 +72,41 @@ function postForm() {
 	xhr.onloadstart = () => { loading = true; }
 	xhr.onloadend = () => {
 		msg.style.display = "block";
-		if (xhr.status == 200) {
-			msg.innerText = "Login Successful";
-			loading = false;
-			window.location.replace("/index")	// Send logged in user to index.
-		} else {
-			msg.innerText = "Invalid usernamne or password";
-			setTimeout(() => {
-				loading = false;
-			}, 1000);	// Make user wait before trying again.
+		switch (signup) {
+			case false:
+				if (xhr.status == 200) {
+					msg.innerText = xhr.response;
+					loading = false;
+					window.location.replace("/index")	// Send logged in user to index.
+				} else {
+					msg.innerText = "Invalid username or password";
+					setTimeout(() => {
+						loading = false;
+					}, 1000);	// Make user wait before trying again.
+				}
+				break
+			case true:
+				if (xhr.status == 200) {
+					msg.innerText = "Sign Up Successful";
+					loading = false;
+					window.location.replace("/index")	// Send logged in user to index.
+				} else {
+					switch (xhr.response) {
+						case "mssql: Duplicate email":
+							msg.innerText = "Email is already taken";
+							break
+						case "mssql: Duplicate uname":
+							msg.innerText = "Username is already taken";
+							break
+
+					}
+					setTimeout(() => {
+						loading = false;
+					}, 1000);	// Make user wait before trying again.
+				}
+
 		}
+
 	}
 
 	// Send login/signup request.

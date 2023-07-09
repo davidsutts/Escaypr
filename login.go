@@ -103,6 +103,44 @@ func logoutHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
+// signupFormHandler handles form requests to the /signup/form URL.
 func signupFormHandler(w http.ResponseWriter, r *http.Request) {
-	log.Println("signing up")
+	log.Println(r.URL.Path)
+	if r.Method != "POST" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	// Get form inputs.
+	username := r.FormValue("username")
+	email := r.FormValue("email")
+	pword := r.FormValue("password")
+
+	// Create new user.
+	encHash, err := generateArgon2Hash(pword, defaultArgonParams)
+	if err != nil {
+		log.Println("couldn't hash password:", err)
+	}
+	val, err := db.Query(
+		"IF EXISTS (SELECT * FROM Users WHERE email = @email) RAISERROR('Duplicate email', 16, 1) "+
+			"IF EXISTS (SELECT * FROM Users WHERE uname = @uname) RAISERROR('Duplicate uname', 16, 1) "+
+			"INSERT INTO Users (email, uname, pword) "+
+			"SELECT TOP 1 @email,@uname,@pword "+
+			"FROM Users WHERE NOT EXISTS (SELECT * FROM Users WHERE email = @email OR uname = @uname) ",
+		sql.Named("uname", username),
+		sql.Named("email", email),
+		sql.Named("pword", encHash),
+	)
+	if err != nil {
+		log.Println(err)
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(err.Error()))
+		return
+	}
+
+	log.Println(val)
+
+	// Create new cookie and log user in.
+	// writeAuthCookie(w)
+
 }
