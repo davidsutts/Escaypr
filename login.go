@@ -122,11 +122,11 @@ func signupFormHandler(w http.ResponseWriter, r *http.Request) {
 		log.Println("couldn't hash password:", err)
 	}
 	row := db.QueryRow(
-		"IF EXISTS (SELECT * FROM Users WHERE email = @email) RAISERROR('Duplicate email', 16, 1) "+
-			"IF EXISTS (SELECT * FROM Users WHERE uname = @uname) RAISERROR('Duplicate uname', 16, 1) "+
-			"INSERT INTO Users (email, uname, pword) "+
-			"SELECT TOP 1 @email,@uname,@pword "+
-			"WHERE NOT EXISTS (SELECT * FROM Users WHERE email = @email OR uname = @uname)",
+		"IF EXISTS (SELECT * FROM Users WHERE email = @email) BEGIN RAISERROR('Duplicate email', 16, 1) RETURN END "+
+			"IF EXISTS (SELECT * FROM Users WHERE uname = @uname) BEGIN RAISERROR('Duplicate uname', 16, 1) RETURN END "+
+			"ELSE INSERT INTO Users (email, uname, pword) "+
+			"VALUES (@email,@uname,@pword) "+
+			"SELECT userID FROM Users WHERE email=@email AND uname=@uname",
 		sql.Named("uname", username),
 		sql.Named("email", email),
 		sql.Named("pword", encHash),
@@ -135,7 +135,6 @@ func signupFormHandler(w http.ResponseWriter, r *http.Request) {
 	// Get the userID and error.
 	var uid int
 	err = row.Scan(&uid)
-	log.Println(uid)
 
 	if err != nil {
 		log.Println("couldn't create user:", err)

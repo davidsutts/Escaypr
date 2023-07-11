@@ -85,6 +85,8 @@ function postForm() {
                         case "mssql: Duplicate uname":
                             msg.innerText = "Username is already taken";
                             break;
+                        default:
+                            msg.innerText = "Something went wrong. Try Again";
                     }
                     setTimeout(function () {
                         loading = false;
@@ -112,5 +114,7 @@ function signupToggle() {
             allInputs[i].value = "";
         }
     }
+    var msg = document.querySelector("p");
+    console.log(msg.style.display);
 }
 //# sourceMappingURL=form.js.map
