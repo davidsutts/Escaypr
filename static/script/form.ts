@@ -30,7 +30,7 @@ document.addEventListener("click", toggleSubmit);
 function checkForm(): boolean {
 	let inputs: HTMLCollectionOf<HTMLInputElement>;
 	if (signup) {
-		inputs = document.getElementsByClassName("signup-input") as HTMLCollectionOf<HTMLInputElement>;
+		inputs = document.getElementsByClassName("signup") as HTMLCollectionOf<HTMLInputElement>;
 	} else {
 		inputs = document.getElementsByClassName("login") as HTMLCollectionOf<HTMLInputElement>;
 	}
@@ -120,17 +120,23 @@ function signupToggle() {
 	signup = !signup
 
 	// Replace text in button.
-	let btn = document.getElementById("form-type-btn") as HTMLInputElement;
-	btn.value = signup ? "Login Instead" : "Sign Up Instead"
+	let btn = document.getElementById("submit") as HTMLInputElement;
+	btn.value = signup ? "Sign Up" : "Login"
+
+	// Replace tool tip in link.
+	let switchLink = document.getElementById("switch-link") as HTMLElement;
+	switchLink.innerText = signup ? "Have an Account? Login" : "New? Create an Account"
 
 	// Get signup specific fields and toggle visibility.
-	let inputs = document.getElementsByClassName("signup") as HTMLCollectionOf<HTMLDivElement>
+	let inputs = document.getElementsByClassName("signup-only") as HTMLCollectionOf<HTMLDivElement>
 	for (let i = 0; i < inputs.length; i++) {
-		inputs[i].style.display = signup ? "flex" : "none"
+		if (!inputs[i].classList.contains("login")) {
+			inputs[i].style.display = signup ? "flex" : "none"
+		}
 	}
 
 	// Clear values of all sign-up fields.
-	let allInputs = document.getElementsByClassName("signup-input") as HTMLCollectionOf<HTMLInputElement>
+	let allInputs = document.getElementsByClassName("signup") as HTMLCollectionOf<HTMLInputElement>
 	for (let i = 0; i < allInputs.length; i++) {
 		if (allInputs[i]) {
 			allInputs[i].value = ""

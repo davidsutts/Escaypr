@@ -1,6 +1,15 @@
 @import url("https://fonts.googleapis.com/css?family=Rubik");
+@import url("https://fonts.googleapis.com/css?family=Prompt");
 
-h1 {
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* input[type="text"] {
+  rounded-full
+} */
+
+/* h1 {
   text-align: center;
 }
 
@@ -18,9 +27,9 @@ label {
   width: 5vw;
 }
 
-/* :invalid {
+:invalid {
   background-color: red;
-} */
+}
 
 .err {
   display: none;
@@ -43,4 +52,4 @@ label {
 .signup {
   height: auto;
   display: none;
-}
+} */

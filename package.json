@@ -1,5 +1,8 @@
 {
   "dependencies": {
     "typescript": "^5.1.3"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.3.2"
   }
 }
