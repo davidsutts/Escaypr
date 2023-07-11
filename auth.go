@@ -116,6 +116,7 @@ func writeAuthCookie(w http.ResponseWriter, uid int, username, userHash string) 
 
 	// Encode the user id and hash.
 	sessionHash := encodeCookieHash(uid, h.Sum(nil))
+	log.Println(len(sessionHash))
 
 	// Write session to database.
 	_, err = db.Exec(
