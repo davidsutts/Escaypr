@@ -22,7 +22,7 @@ document.addEventListener("click", toggleSubmit);
 function checkForm() {
     var inputs;
     if (signup) {
-        inputs = document.getElementsByClassName("signup-input");
+        inputs = document.getElementsByClassName("signup");
     }
     else {
         inputs = document.getElementsByClassName("login");
@@ -96,13 +96,17 @@ function postForm() {
 }
 function signupToggle() {
     signup = !signup;
-    var btn = document.getElementById("form-type-btn");
-    btn.value = signup ? "Login Instead" : "Sign Up Instead";
-    var inputs = document.getElementsByClassName("signup");
+    var btn = document.getElementById("submit");
+    btn.value = signup ? "Sign Up" : "Login";
+    var switchLink = document.getElementById("switch-link");
+    switchLink.innerText = signup ? "Have an Account? Login" : "New? Create an Account";
+    var inputs = document.getElementsByClassName("signup-only");
     for (var i = 0; i < inputs.length; i++) {
-        inputs[i].style.display = signup ? "flex" : "none";
+        if (!inputs[i].classList.contains("login")) {
+            inputs[i].style.display = signup ? "flex" : "none";
+        }
     }
-    var allInputs = document.getElementsByClassName("signup-input");
+    var allInputs = document.getElementsByClassName("signup");
     for (var i = 0; i < allInputs.length; i++) {
         if (allInputs[i]) {
             allInputs[i].value = "";
