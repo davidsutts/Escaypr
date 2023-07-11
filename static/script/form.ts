@@ -98,7 +98,8 @@ function postForm() {
 						case "mssql: Duplicate uname":
 							msg.innerText = "Username is already taken";
 							break
-
+						default:
+							msg.innerText = "Something went wrong. Try Again"
 					}
 					setTimeout(() => {
 						loading = false;
@@ -142,5 +143,9 @@ function signupToggle() {
 			allInputs[i].value = ""
 		}
 	}
+
+	// Clear error message.
+	const msg = document.querySelector("p")!;
+	console.log(msg.style.display)
 
 }
