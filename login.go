@@ -56,7 +56,8 @@ func loginFormHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	} else {
 		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte("Invalid Username or password"))
+		log.Println("Invalid Username or Password")
+		w.Write([]byte("Invalid Username or Password"))
 		log.Printf("Failed Login attempt")
 		return
 	}
@@ -121,6 +122,7 @@ func signupFormHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println("couldn't hash password:", err)
 	}
+	log.Println(len(encHash))
 	row := db.QueryRow(
 		"IF EXISTS (SELECT * FROM Users WHERE email = @email) BEGIN RAISERROR('Duplicate email', 16, 1) RETURN END "+
 			"IF EXISTS (SELECT * FROM Users WHERE uname = @uname) BEGIN RAISERROR('Duplicate uname', 16, 1) RETURN END "+

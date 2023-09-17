@@ -18,31 +18,28 @@ package main
 import (
 	"context"
 	"database/sql"
-	"flag"
 	"fmt"
 	"html/template"
 	"log"
 	"net/http"
+	"os"
+	"strconv"
 
-	_ "github.com/microsoft/go-mssqldb"
+	_ "github.com/lib/pq"
 )
 
 var tmpl *template.Template
 
 var (
 	db         *sql.DB
-	server     = "localhost"
-	port       = 1433
-	user       = "sa"
-	sapassword string
-	database   = "escaypr"
+	server     = os.Getenv("DB_HOST")
+	port, _    = strconv.Atoi(os.Getenv("DB_PORT"))
+	user       = os.Getenv("DB_USER")
+	sapassword = os.Getenv("DB_PWORD")
+	database   = os.Getenv("DB")
 )
 
 func main() {
-	// Parse command-line flags.
-	flag.StringVar(&sapassword, "dbpword", "", "DB SA Password")
-	flag.Parse()
-
 	// Create context.
 	ctx := context.Background()
 
@@ -70,10 +67,11 @@ func main() {
 // dbConnect initialises a connection with the database and returns a reference to a sql.DB.
 func dbConnect(ctx context.Context) *sql.DB {
 	// Create connection string.
-	connString := fmt.Sprintf("server=%s;user id=%s;password=%s;port=%d;database=%s;", server, user, sapassword, port, database)
+	connString := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable", user, sapassword, server, port, database)
+	log.Println(connString)
 
 	// Connect to server.
-	db, err := sql.Open("sqlserver", connString)
+	db, err := sql.Open("postgres", connString)
 	if err != nil {
 		log.Fatal("Error creating connection pool: ", err.Error())
 	}
