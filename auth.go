@@ -28,6 +28,13 @@ type argon2params struct {
 	KeyLength   uint32
 }
 
+// Users mirrors the structure of the table in the database.
+type Users struct {
+	Uname string `gorm:"primaryKey"`
+	PwordHash string
+	Email string
+}
+
 // userAuthVals contains all the data which is stored in the encoded value of the
 // userAuth cookies.
 type userAuthVals struct {
@@ -49,24 +56,15 @@ const expLength = 240 * time.Hour // Auth cookies last 10 days.
 // validateLogin is used to check whether a username and password pair are a valid pair that
 // correspond to a user in the database.
 func validateLogin(uname, pword string, ctx context.Context) (uid int, sessionHash string) {
-
-	// Get password hash from db.
-	var (
-		dbPwordHash string
-	)
-
-	err := db.QueryRowContext(
-		ctx,
-		"SELECT userID, pword FROM Users WHERE uname = @uname;",
-		sql.Named("uname", uname),
-	).Scan(&uid, &dbPwordHash)
-	if err != nil {
-		log.Println("failed to get value:", err)
+	user := Users{}
+	result := db.First(&user, "uname = ?", uname)
+	if result.Error != nil {
+		log.Println("failed to get user record:", result.Error)
 		return -1, ""
 	}
 
 	// Check if password is correct.
-	match, err := comparePasswordAndHash(pword, dbPwordHash)
+	match, err := comparePasswordAndHash(pword, user.PwordHash)
 	if err != nil {
 		log.Println("Failed to compare password: %w", err)
 		return -1, ""
@@ -74,7 +72,7 @@ func validateLogin(uname, pword string, ctx context.Context) (uid int, sessionHa
 
 	// Return session hash, or fail.
 	if match {
-		return uid, generateSessionHash(dbPwordHash)
+		return uid, generateSessionHash(user.PwordHash)
 	} else {
 		return -1, ""
 	}
@@ -254,6 +252,8 @@ func addSalt(hash []byte) (hashOut []byte, err error) {
 //
 // learn more: https://en.wikipedia.org/wiki/Argon2
 // Using the argon2 go library.
+//
+// This hash has a length of 97 characters
 func generateArgon2Hash(password string, p argon2params) (encodedHash string, err error) {
 	// Generate salt.
 	salt, err := generateSalt(p.SaltLength)
