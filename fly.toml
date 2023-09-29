@@ -13,6 +13,9 @@ primary_region = "syd"
 [env]
   PORT = "8080"
 
+[build.args]
+  BP_KEEP_FILES = "static/*:resources/*"
+
 [http_service]
   internal_port = 8080
   force_https = true
