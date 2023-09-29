@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
-	"database/sql"
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
@@ -33,6 +32,14 @@ type Users struct {
 	Uname string `gorm:"primaryKey"`
 	PwordHash string
 	Email string
+}
+
+// Cookies mirrors the structure of the table in the database.
+type Cookies struct {
+	Key int `gorm:"primaryKey"`
+	User string
+	CookieHash string
+	ExpiryTime time.Time
 }
 
 // userAuthVals contains all the data which is stored in the encoded value of the
@@ -117,13 +124,9 @@ func writeAuthCookie(w http.ResponseWriter, uid int, username, userHash string) 
 	log.Println(len(sessionHash))
 
 	// Write session to database.
-	_, err = db.Exec(
-		"INSERT INTO Cookies (userID, sessionHash, expiryTime) VALUES (@uid, @sessionHash, @expTime)",
-		sql.Named("uid", uid),
-		sql.Named("sessionHash", sessionHash),
-		sql.Named("expTime", expTime),
-	)
-	if err != nil {
+	sessionCookie := Cookies{User: username, CookieHash: sessionHash, ExpiryTime: expTime}
+	result := db.Create(&sessionCookie)
+	if result.Error != nil {
 		return fmt.Errorf("unable to write session to db: %w", err)
 	}
 
@@ -146,49 +149,43 @@ func validateCookie(r *http.Request) (valid bool, username string) {
 	h := sha256.New()
 	h.Write([]byte(uaVals.SessionHash))
 	encHash := encodeCookieHash(uaVals.UserID, h.Sum(nil))
+
 	// Query the database for the hash.
-	var (
-		dbUid   int
-		expTime time.Time
-	)
-	row := db.QueryRow(
-		"SELECT userID, expiryTime FROM Cookies WHERE sessionHash = @encHash",
-		sql.Named("encHash", encHash),
-	)
-	err = row.Scan(&dbUid, &expTime)
-	if err != nil {
+	cookie := Cookies{}
+	result := db.First(&cookie, "pword_hash = ?", encHash)
+	if result.Error != nil {
 		log.Println(err)
 		return false, ""
 	}
 
 	// Check uid lines up with cookie.
-	if dbUid != uaVals.UserID {
+	if cookie.User != uaVals.Username {
 		return false, ""
 	}
 
-	// Check if expiry time was in the past.
-	if time.Since(expTime).Seconds() > 0 {
-		_, err := db.Exec(
-			"DELETE FROM Cookies WHERE sessionHash = @encHash",
-			sql.Named("encHash", encHash),
-		)
-		if err != nil {
-			log.Println(err)
-		}
-		log.Printf("userID %d logged out: expired cookie", uaVals.UserID)
-		return false, ""
-	}
+	// // Check if expiry time was in the past.
+	// if time.Since(expTime).Seconds() > 0 {
+	// 	_, err := db.Exec(
+	// 		"DELETE FROM Cookies WHERE sessionHash = @encHash",
+	// 		sql.Named("encHash", encHash),
+	// 	)
+	// 	if err != nil {
+	// 		log.Println(err)
+	// 	}
+	// 	log.Printf("userID %d logged out: expired cookie", uaVals.UserID)
+	// 	return false, ""
+	// }
 
-	// Extend expiry time.
-	formExpTime := time.Now().UTC().Add(expLength).Format("2006-01-02 15:04:05")
-	_, err = db.Exec(
-		"UPDATE Cookies SET expiryTime = @expTime WHERE sessionHash = @encHash",
-		sql.Named("expTime", formExpTime),
-		sql.Named("encHash", encHash),
-	)
-	if err != nil {
-		log.Println("couldn't update expiryTime: %w", err)
-	}
+	// // Extend expiry time.
+	// formExpTime := time.Now().UTC().Add(expLength).Format("2006-01-02 15:04:05")
+	// _, err = db.Exec(
+	// 	"UPDATE Cookies SET expiryTime = @expTime WHERE sessionHash = @encHash",
+	// 	sql.Named("expTime", formExpTime),
+	// 	sql.Named("encHash", encHash),
+	// )
+	// if err != nil {
+	// 	log.Println("couldn't update expiryTime: %w", err)
+	// }
 
 	return true, uaVals.Username
 }
@@ -346,24 +343,24 @@ func decodeArgon2Hash(encodedHash string) (p *argon2params, salt, hash []byte, e
 
 // uniqueIdentity reads the database to determine if the supplied username or email exist
 // already.
-func isUniqueIdentity(uname, email string) bool {
-	log.Println(uname, email)
-	// Query the database.
-	rows, err := db.Query(
-		"SELECT uname, email FROM users WHERE email = @email OR uname = @username",
-		sql.Named("email", email),
-		sql.Named("username", uname),
-	)
-	if err != nil {
-		log.Println("couldn't query for overlap:", rows.Err())
-	}
+// func isUniqueIdentity(uname, email string) bool {
+// 	log.Println(uname, email)
+// 	// Query the database.
+// 	rows, err := db.Query(
+// 		"SELECT uname, email FROM users WHERE email = @email OR uname = @username",
+// 		sql.Named("email", email),
+// 		sql.Named("username", uname),
+// 	)
+// 	if err != nil {
+// 		log.Println("couldn't query for overlap:", rows.Err())
+// 	}
 
-	// Check if the user exsts.
-	var (
-		dbUname string
-		dbEmail string
-	)
-	rows.Scan(&dbUname, &dbEmail)
-	log.Println(dbUname)
-	return false
-}
+// 	// Check if the user exsts.
+// 	var (
+// 		dbUname string
+// 		dbEmail string
+// 	)
+// 	rows.Scan(&dbUname, &dbEmail)
+// 	log.Println(dbUname)
+// 	return false
+// }
