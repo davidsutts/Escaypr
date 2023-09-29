@@ -89,12 +89,10 @@ func logoutHandler(w http.ResponseWriter, r *http.Request) {
 	encHash := encodeCookieHash(uaVals.UserID, h.Sum(nil))
 
 	// Delete the session from the dB.
-	_, err = db.Exec(
-		"DELETE FROM Cookies WHERE sessionHash = @sessionHash",
-		sql.Named("sessionHash", encHash),
-	)
-	if err != nil {
-		log.Println(err)
+	cookie := Cookies{}
+	result := db.Delete(&cookie, "cookie_hash = ?", encHash)
+	if result.Error != nil {
+		log.Println(result.Error)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
