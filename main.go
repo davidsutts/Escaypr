@@ -41,9 +41,10 @@ var (
 
 func main() {
 	// Connect to database.
-	db, err := dbConnect()
+	var err error
+	db, err = dbConnect()
 	if err != nil {
-		log.Println(err)
+		log.Fatalln(err)
 	}
 
 	mux := http.NewServeMux()
@@ -66,18 +67,17 @@ func main() {
 
 // dbConnect initialises a connection with the database and returns a reference to a gorm.DB.
 func dbConnect() (*gorm.DB, error) {
-	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=Australia/Sydney", host, user, sapassword, "postgres")
-	var err error
-	for i := 0; i<5; i++ {
+	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%d sslmode=disable TimeZone=Australia/Sydney", host, user, sapassword, database, port)
+	for i := 0; i < 5; i++ {
 		gormDB, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 		if err == nil {
-			log.Println("connected to database: escaypr")
+			log.Printf("connected to database: %s", database)
 			return gormDB, err
 		}
-		log.Println("failed to connect to escaypr: attempt", i+1)
+		log.Printf("failed to connect to %s: attempt %d", database, i+1)
 	}
-	return nil, fmt.Errorf("exceeded max retries and couldn't connect: %w", err)
-	
+	return new(gorm.DB), fmt.Errorf("exceeded max retries and couldn't connect to database")
+
 }
 
 // indexHandler handles requests to the index (home) page.

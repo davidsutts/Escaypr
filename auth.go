@@ -29,15 +29,16 @@ type argon2params struct {
 
 // Users mirrors the structure of the table in the database.
 type Users struct {
-	Uname string `gorm:"primaryKey"`
+	Id        int
+	Uname     string
 	PwordHash string
-	Email string
+	Email     string
 }
 
 // Cookies mirrors the structure of the table in the database.
 type Cookies struct {
-	Key int `gorm:"primaryKey"`
-	User string
+	ID         int
+	User       string
 	CookieHash string
 	ExpiryTime time.Time
 }
@@ -45,7 +46,7 @@ type Cookies struct {
 // userAuthVals contains all the data which is stored in the encoded value of the
 // userAuth cookies.
 type userAuthVals struct {
-	UserID      int
+	ID          int
 	Username    string
 	SessionHash []byte
 }
@@ -121,7 +122,6 @@ func writeAuthCookie(w http.ResponseWriter, uid int, username, userHash string) 
 
 	// Encode the user id and hash.
 	sessionHash := encodeCookieHash(uid, h.Sum(nil))
-	log.Println(len(sessionHash))
 
 	// Write session to database.
 	sessionCookie := Cookies{User: username, CookieHash: sessionHash, ExpiryTime: expTime}
@@ -148,11 +148,11 @@ func validateCookie(r *http.Request) (valid bool, username string) {
 	// Encode the hash.
 	h := sha256.New()
 	h.Write([]byte(uaVals.SessionHash))
-	encHash := encodeCookieHash(uaVals.UserID, h.Sum(nil))
+	encHash := encodeCookieHash(uaVals.ID, h.Sum(nil))
 
 	// Query the database for the hash.
 	cookie := Cookies{}
-	result := db.First(&cookie, "pword_hash = ?", encHash)
+	result := db.Where("cookie_hash = ?", encHash).First(&cookie)
 	if result.Error != nil {
 		log.Println(err)
 		return false, ""
@@ -162,30 +162,6 @@ func validateCookie(r *http.Request) (valid bool, username string) {
 	if cookie.User != uaVals.Username {
 		return false, ""
 	}
-
-	// // Check if expiry time was in the past.
-	// if time.Since(expTime).Seconds() > 0 {
-	// 	_, err := db.Exec(
-	// 		"DELETE FROM Cookies WHERE sessionHash = @encHash",
-	// 		sql.Named("encHash", encHash),
-	// 	)
-	// 	if err != nil {
-	// 		log.Println(err)
-	// 	}
-	// 	log.Printf("userID %d logged out: expired cookie", uaVals.UserID)
-	// 	return false, ""
-	// }
-
-	// // Extend expiry time.
-	// formExpTime := time.Now().UTC().Add(expLength).Format("2006-01-02 15:04:05")
-	// _, err = db.Exec(
-	// 	"UPDATE Cookies SET expiryTime = @expTime WHERE sessionHash = @encHash",
-	// 	sql.Named("expTime", formExpTime),
-	// 	sql.Named("encHash", encHash),
-	// )
-	// if err != nil {
-	// 	log.Println("couldn't update expiryTime: %w", err)
-	// }
 
 	return true, uaVals.Username
 }
@@ -212,7 +188,7 @@ func decodeCookie(ck *http.Cookie) (*userAuthVals, error) {
 		return nil, fmt.Errorf("unable to decode string to hex: %w", err)
 	}
 
-	return &userAuthVals{UserID: uid, Username: uname, SessionHash: hash}, nil
+	return &userAuthVals{ID: uid, Username: uname, SessionHash: hash}, nil
 
 }
 
@@ -340,27 +316,3 @@ func decodeArgon2Hash(encodedHash string) (p *argon2params, salt, hash []byte, e
 
 	return p, salt, hash, nil
 }
-
-// uniqueIdentity reads the database to determine if the supplied username or email exist
-// already.
-// func isUniqueIdentity(uname, email string) bool {
-// 	log.Println(uname, email)
-// 	// Query the database.
-// 	rows, err := db.Query(
-// 		"SELECT uname, email FROM users WHERE email = @email OR uname = @username",
-// 		sql.Named("email", email),
-// 		sql.Named("username", uname),
-// 	)
-// 	if err != nil {
-// 		log.Println("couldn't query for overlap:", rows.Err())
-// 	}
-
-// 	// Check if the user exsts.
-// 	var (
-// 		dbUname string
-// 		dbEmail string
-// 	)
-// 	rows.Scan(&dbUname, &dbEmail)
-// 	log.Println(dbUname)
-// 	return false
-// }

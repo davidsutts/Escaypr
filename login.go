@@ -2,10 +2,11 @@ package main
 
 import (
 	"crypto/sha256"
-	"database/sql"
 	"html/template"
 	"log"
 	"net/http"
+
+	"gorm.io/gorm"
 )
 
 // loginHandler handles requests to the login page.
@@ -66,7 +67,6 @@ func loginFormHandler(w http.ResponseWriter, r *http.Request) {
 // logoutFormHandler handles requests to the /logout page.
 func logoutHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println(r.URL.Path)
-	log.Println("MADE IT")
 
 	ck, err := r.Cookie("userAuth")
 	if err != nil {
@@ -86,7 +86,7 @@ func logoutHandler(w http.ResponseWriter, r *http.Request) {
 	// Hash the hash to get the db hash.
 	h := sha256.New()
 	h.Write(uaVals.SessionHash)
-	encHash := encodeCookieHash(uaVals.UserID, h.Sum(nil))
+	encHash := encodeCookieHash(uaVals.ID, h.Sum(nil))
 
 	// Delete the session from the dB.
 	cookie := Cookies{}
@@ -120,28 +120,31 @@ func signupFormHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println("couldn't hash password:", err)
 	}
-	log.Println(len(encHash))
-	row := db.QueryRow(
-		"IF EXISTS (SELECT * FROM Users WHERE email = @email) BEGIN RAISERROR('Duplicate email', 16, 1) RETURN END "+
-			"IF EXISTS (SELECT * FROM Users WHERE uname = @uname) BEGIN RAISERROR('Duplicate uname', 16, 1) RETURN END "+
-			"ELSE INSERT INTO Users (email, uname, pword) "+
-			"VALUES (@email,@uname,@pword) "+
-			"SELECT userID FROM Users WHERE email=@email AND uname=@uname",
-		sql.Named("uname", username),
-		sql.Named("email", email),
-		sql.Named("pword", encHash),
-	)
 
-	// Get the userID and error.
-	var uid int
-	err = row.Scan(&uid)
+	// Check if username or email are taken.
+	user := Users{Uname: username, PwordHash: encHash, Email: email}
+	result := db.First(&user, "uname = ? OR email = ?", username, email)
+	if result.Error != gorm.ErrRecordNotFound {
+		if (result.Error != nil) {
+			log.Println("failed finding existing users:", result.Error)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		} else {
+			log.Println("failed signup attempt: duplicate key")
+			w.WriteHeader(http.StatusConflict)
+			w.Write([]byte("duplicate key err"))
+			return
+		}
+	}
 
-	if err != nil {
-		log.Println("couldn't create user:", err)
-		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(err.Error()))
+	// Create a new user.
+	result = db.Create(&user)
+	if result.Error != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("could not create new user"))
 		return
 	}
+	uid := user.Id
 
 	// Create new cookie and log user in.
 	err = writeAuthCookie(w, uid, username, generateSessionHash(encHash))
