@@ -77,7 +77,7 @@ function postForm() {
 				if (xhr.status == 200) {
 					msg.innerText = xhr.response;
 					loading = false;
-					window.location.replace("/index")	// Send logged in user to index.
+					window.location.replace("/");	// Send logged in user to home.
 				} else {
 					msg.innerText = "Invalid username or password";
 					setTimeout(() => {
@@ -89,7 +89,7 @@ function postForm() {
 				if (xhr.status == 200) {
 					msg.innerText = "Sign Up Successful";
 					loading = false;
-					window.location.replace("/index")	// Send logged in user to index.
+					window.location.replace("/");	// Send logged in user to home.
 				} else {
 					switch (xhr.response) {
 						case "duplicate key err":
