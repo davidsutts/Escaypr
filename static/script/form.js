@@ -79,11 +79,8 @@ function postForm() {
                 }
                 else {
                     switch (xhr.response) {
-                        case "mssql: Duplicate email":
-                            msg.innerText = "Email is already taken";
-                            break;
-                        case "mssql: Duplicate uname":
-                            msg.innerText = "Username is already taken";
+                        case "duplicate key err":
+                            msg.innerText = "Username or Email is already taken";
                             break;
                         default:
                             msg.innerText = "Something went wrong. Try Again";

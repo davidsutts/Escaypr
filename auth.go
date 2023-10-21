@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
-	"database/sql"
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
@@ -28,10 +27,26 @@ type argon2params struct {
 	KeyLength   uint32
 }
 
+// Users mirrors the structure of the table in the database.
+type Users struct {
+	Id        int
+	Uname     string
+	PwordHash string
+	Email     string
+}
+
+// Cookies mirrors the structure of the table in the database.
+type Cookies struct {
+	ID         int
+	User       string
+	CookieHash string
+	ExpiryTime time.Time
+}
+
 // userAuthVals contains all the data which is stored in the encoded value of the
 // userAuth cookies.
 type userAuthVals struct {
-	UserID      int
+	ID          int
 	Username    string
 	SessionHash []byte
 }
@@ -49,24 +64,15 @@ const expLength = 240 * time.Hour // Auth cookies last 10 days.
 // validateLogin is used to check whether a username and password pair are a valid pair that
 // correspond to a user in the database.
 func validateLogin(uname, pword string, ctx context.Context) (uid int, sessionHash string) {
-
-	// Get password hash from db.
-	var (
-		dbPwordHash string
-	)
-
-	err := db.QueryRowContext(
-		ctx,
-		"SELECT userID, pword FROM Users WHERE uname = @uname;",
-		sql.Named("uname", uname),
-	).Scan(&uid, &dbPwordHash)
-	if err != nil {
-		log.Println("failed to get value:", err)
+	user := Users{}
+	result := db.First(&user, "uname = ?", uname)
+	if result.Error != nil {
+		log.Println("failed to get user record:", result.Error)
 		return -1, ""
 	}
 
 	// Check if password is correct.
-	match, err := comparePasswordAndHash(pword, dbPwordHash)
+	match, err := comparePasswordAndHash(pword, user.PwordHash)
 	if err != nil {
 		log.Println("Failed to compare password: %w", err)
 		return -1, ""
@@ -74,7 +80,7 @@ func validateLogin(uname, pword string, ctx context.Context) (uid int, sessionHa
 
 	// Return session hash, or fail.
 	if match {
-		return uid, generateSessionHash(dbPwordHash)
+		return uid, generateSessionHash(user.PwordHash)
 	} else {
 		return -1, ""
 	}
@@ -116,16 +122,11 @@ func writeAuthCookie(w http.ResponseWriter, uid int, username, userHash string) 
 
 	// Encode the user id and hash.
 	sessionHash := encodeCookieHash(uid, h.Sum(nil))
-	log.Println(len(sessionHash))
 
 	// Write session to database.
-	_, err = db.Exec(
-		"INSERT INTO Cookies (userID, sessionHash, expiryTime) VALUES (@uid, @sessionHash, @expTime)",
-		sql.Named("uid", uid),
-		sql.Named("sessionHash", sessionHash),
-		sql.Named("expTime", expTime),
-	)
-	if err != nil {
+	sessionCookie := Cookies{User: username, CookieHash: sessionHash, ExpiryTime: expTime}
+	result := db.Create(&sessionCookie)
+	if result.Error != nil {
 		return fmt.Errorf("unable to write session to db: %w", err)
 	}
 
@@ -147,49 +148,19 @@ func validateCookie(r *http.Request) (valid bool, username string) {
 	// Encode the hash.
 	h := sha256.New()
 	h.Write([]byte(uaVals.SessionHash))
-	encHash := encodeCookieHash(uaVals.UserID, h.Sum(nil))
+	encHash := encodeCookieHash(uaVals.ID, h.Sum(nil))
+
 	// Query the database for the hash.
-	var (
-		dbUid   int
-		expTime time.Time
-	)
-	row := db.QueryRow(
-		"SELECT userID, expiryTime FROM Cookies WHERE sessionHash = @encHash",
-		sql.Named("encHash", encHash),
-	)
-	err = row.Scan(&dbUid, &expTime)
-	if err != nil {
+	cookie := Cookies{}
+	result := db.Where("cookie_hash = ?", encHash).First(&cookie)
+	if result.Error != nil {
 		log.Println(err)
 		return false, ""
 	}
 
 	// Check uid lines up with cookie.
-	if dbUid != uaVals.UserID {
+	if cookie.User != uaVals.Username {
 		return false, ""
-	}
-
-	// Check if expiry time was in the past.
-	if time.Since(expTime).Seconds() > 0 {
-		_, err := db.Exec(
-			"DELETE FROM Cookies WHERE sessionHash = @encHash",
-			sql.Named("encHash", encHash),
-		)
-		if err != nil {
-			log.Println(err)
-		}
-		log.Printf("userID %d logged out: expired cookie", uaVals.UserID)
-		return false, ""
-	}
-
-	// Extend expiry time.
-	formExpTime := time.Now().UTC().Add(expLength).Format("2006-01-02 15:04:05")
-	_, err = db.Exec(
-		"UPDATE Cookies SET expiryTime = @expTime WHERE sessionHash = @encHash",
-		sql.Named("expTime", formExpTime),
-		sql.Named("encHash", encHash),
-	)
-	if err != nil {
-		log.Println("couldn't update expiryTime: %w", err)
 	}
 
 	return true, uaVals.Username
@@ -217,7 +188,7 @@ func decodeCookie(ck *http.Cookie) (*userAuthVals, error) {
 		return nil, fmt.Errorf("unable to decode string to hex: %w", err)
 	}
 
-	return &userAuthVals{UserID: uid, Username: uname, SessionHash: hash}, nil
+	return &userAuthVals{ID: uid, Username: uname, SessionHash: hash}, nil
 
 }
 
@@ -254,6 +225,8 @@ func addSalt(hash []byte) (hashOut []byte, err error) {
 //
 // learn more: https://en.wikipedia.org/wiki/Argon2
 // Using the argon2 go library.
+//
+// This hash has a length of 97 characters
 func generateArgon2Hash(password string, p argon2params) (encodedHash string, err error) {
 	// Generate salt.
 	salt, err := generateSalt(p.SaltLength)
@@ -342,28 +315,4 @@ func decodeArgon2Hash(encodedHash string) (p *argon2params, salt, hash []byte, e
 	p.KeyLength = uint32(len(hash))
 
 	return p, salt, hash, nil
-}
-
-// uniqueIdentity reads the database to determine if the supplied username or email exist
-// already.
-func isUniqueIdentity(uname, email string) bool {
-	log.Println(uname, email)
-	// Query the database.
-	rows, err := db.Query(
-		"SELECT uname, email FROM users WHERE email = @email OR uname = @username",
-		sql.Named("email", email),
-		sql.Named("username", uname),
-	)
-	if err != nil {
-		log.Println("couldn't query for overlap:", rows.Err())
-	}
-
-	// Check if the user exsts.
-	var (
-		dbUname string
-		dbEmail string
-	)
-	rows.Scan(&dbUname, &dbEmail)
-	log.Println(dbUname)
-	return false
 }

@@ -16,8 +16,6 @@ COPYRIGHT 2023 - DAVID SUTTON
 package main
 
 import (
-	"context"
-	"database/sql"
 	"fmt"
 	"html/template"
 	"log"
@@ -26,13 +24,15 @@ import (
 	"strconv"
 
 	_ "github.com/lib/pq"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
 
 var tmpl *template.Template
 
 var (
-	db         *sql.DB
-	server     = os.Getenv("DB_HOST")
+	db         *gorm.DB
+	host       = os.Getenv("DB_HOST")
 	port, _    = strconv.Atoi(os.Getenv("DB_PORT"))
 	user       = os.Getenv("DB_USER")
 	sapassword = os.Getenv("DB_PWORD")
@@ -40,11 +40,12 @@ var (
 )
 
 func main() {
-	// Create context.
-	ctx := context.Background()
-
 	// Connect to database.
-	db = dbConnect(ctx)
+	var err error
+	db, err = dbConnect()
+	if err != nil {
+		log.Fatalln(err)
+	}
 
 	mux := http.NewServeMux()
 
@@ -64,26 +65,19 @@ func main() {
 	log.Fatal(http.ListenAndServe(":8080", mux))
 }
 
-// dbConnect initialises a connection with the database and returns a reference to a sql.DB.
-func dbConnect(ctx context.Context) *sql.DB {
-	// Create connection string.
-	connString := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable", user, sapassword, server, port, database)
-	log.Println(connString)
-
-	// Connect to server.
-	db, err := sql.Open("postgres", connString)
-	if err != nil {
-		log.Fatal("Error creating connection pool: ", err.Error())
+// dbConnect initialises a connection with the database and returns a reference to a gorm.DB.
+func dbConnect() (*gorm.DB, error) {
+	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%d sslmode=disable TimeZone=Australia/Sydney", host, user, sapassword, database, port)
+	for i := 0; i < 5; i++ {
+		gormDB, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+		if err == nil {
+			log.Printf("connected to database: %s", database)
+			return gormDB, err
+		}
+		log.Printf("failed to connect to %s: attempt %d", database, i+1)
 	}
+	return new(gorm.DB), fmt.Errorf("exceeded max retries and couldn't connect to database")
 
-	// Test server connection.
-	err = db.PingContext(ctx)
-	if err != nil {
-		log.Fatal(err.Error())
-	}
-	log.Printf("Connected!\n")
-
-	return db
 }
 
 // indexHandler handles requests to the index (home) page.
