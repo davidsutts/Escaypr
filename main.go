@@ -84,9 +84,10 @@ func dbConnect() (*gorm.DB, error) {
 func indexHandler(w http.ResponseWriter, r *http.Request) {
 	valid, username := validateCookie(r)
 	if !valid {
-		http.Redirect(w, r, "/login", http.StatusUnauthorized)
-		return
-	}
+    w.Header().Set("Location", "/login")
+    w.WriteHeader(http.StatusSeeOther)
+    return
+  }
 
 	tmpl = template.Must(template.ParseFiles("static/html/index.html"))
 
