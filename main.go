@@ -28,6 +28,8 @@ import (
 	"gorm.io/gorm"
 )
 
+const version = "0.0.1-a"
+
 var tmpl *template.Template
 
 var (
@@ -46,6 +48,9 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
+
+	// Print version number.
+	log.Println("Running version", version)
 
 	mux := http.NewServeMux()
 
@@ -96,7 +101,8 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 	var indexData = struct {
 		Title string
 		Uname string
-	}{Title: "Escapyr", Uname: username}
+		Version string
+	}{Title: "Escapyr", Uname: username, Version: version}
 
 	err := tmpl.Execute(w, indexData)
 	if err != nil {
