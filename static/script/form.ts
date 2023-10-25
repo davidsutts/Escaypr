@@ -39,7 +39,12 @@ function checkForm(): boolean {
 			return false;
 		}
 	}
-	let validEmail = !inputs[1].validity.valid;
+
+	if (!signup) {
+		return true;
+	}
+	let validEmail = inputs[1].validity.valid;
+	console.log("Got valid email:", validEmail)
 	if (!validEmail || signup && inputs[2].value != inputs[3].value) {
 		return false;
 	}
