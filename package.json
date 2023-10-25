@@ -4,5 +4,9 @@
   },
   "devDependencies": {
     "tailwindcss": "^3.3.2"
+  },
+  "scripts": {
+    "dev": "tsc --watch & npx tailwindcss -i ./static/style/main.css -o ./static/style/twout.css --watch",
+    "serve": "go run ./" 
   }
 }
