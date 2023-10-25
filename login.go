@@ -25,7 +25,8 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	var loginData = struct {
 		Title  string
 		Signup bool
-	}{Title: "Login", Signup: false}
+		Version string
+	}{Title: "Login", Signup: false, Version: version}
 
 	err := tmpl.Execute(w, loginData)
 	if err != nil {
